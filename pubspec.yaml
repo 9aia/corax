@@ -10,6 +10,9 @@ dependencies:
   flutter:
     sdk: flutter
   flutter_tts: ^4.2.2
+  file_picker: ^10.1.9
+  syncfusion_flutter_pdfviewer: ^29.2.7
+  pdf: ^3.10.7
 
 dev_dependencies:
   flutter_test:
