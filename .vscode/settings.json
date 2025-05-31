@@ -1,0 +1,14 @@
+{
+  "files.exclude": {
+    "**/.dart_tool": true,
+    "**/.idea": true,
+  },
+  "explorer.fileNesting.enabled": true,
+  "explorer.fileNesting.expand": false,
+  "explorer.fileNesting.patterns": {
+    "pubspec.yaml": "pubspec.lock, corax.iml, analysis_options.yaml, .metadata",
+    "README.md": "CONTRIBUTING.md, CODE_OF_CONDUCT.md, SECURITY.md, LICENSE.md",
+  },
+  "editor.bracketPairColorization.enabled": true,
+  "editor.guides.bracketPairs":"active"
+}
