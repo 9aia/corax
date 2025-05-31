@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
-import 'package:pdf/pdf.dart';
+import 'package:syncfusion_flutter_pdf/pdf.dart' as sf;
 import 'dart:io';
 
 void main() {
@@ -61,19 +61,50 @@ class _PdfTtsScreenState extends State<PdfTtsScreen> {
       );
 
       if (result != null) {
+        final file = File(result.files.single.path!);
         setState(() {
-          _pdfFile = File(result.files.single.path!);
+          _pdfFile = file;
           _currentSentenceIndex = 0;
           _isPlaying = false;
         });
-        // TODO: Extract text from PDF and split into sentences
-        // This would require additional PDF parsing logic
+        
+        // Extract text from PDF
+        final bytes = await file.readAsBytes();
+        final pdfDocument = sf.PdfDocument(inputBytes: bytes);
+        String fullText = '';
+        
+        // Extract text from each page
+        for (var i = 0; i < pdfDocument.pages.count; i++) {
+          final page = pdfDocument.pages[i];
+          final text = sf.PdfTextExtractor(pdfDocument).extractText(startPageIndex: i);
+          fullText += text + ' ';
+        }
+        
+        // Split text into sentences
+        final sentences = _splitIntoSentences(fullText);
+        
+        setState(() {
+          _sentences = sentences;
+        });
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error picking PDF: $e')),
       );
     }
+  }
+
+  List<String> _splitIntoSentences(String text) {
+    // Split text into sentences using common sentence endings
+    final sentences = text
+        .replaceAll(RegExp(r'\s+'), ' ') // Replace multiple spaces with single space
+        .trim()
+        .split(RegExp(r'(?<=[.!?])\s+')) // Split on sentence endings followed by whitespace
+        .where((sentence) => sentence.trim().isNotEmpty) // Remove empty sentences
+        .map((sentence) => sentence.trim()) // Trim whitespace
+        .toList();
+    
+    return sentences;
   }
 
   Future<void> _togglePlayPause() async {
@@ -91,6 +122,16 @@ class _PdfTtsScreenState extends State<PdfTtsScreen> {
       await _flutterTts.speak(_sentences[_currentSentenceIndex]);
       setState(() {
         _isPlaying = true;
+      });
+      
+      // Move to next sentence when current one is done
+      _flutterTts.setCompletionHandler(() {
+        setState(() {
+          _isPlaying = false;
+          if (_currentSentenceIndex < _sentences.length - 1) {
+            _currentSentenceIndex++;
+          }
+        });
       });
     }
   }
@@ -128,6 +169,13 @@ class _PdfTtsScreenState extends State<PdfTtsScreen> {
                     icon: Icon(_isPlaying ? Icons.pause : Icons.play_arrow),
                     onPressed: _togglePlayPause,
                   ),
+                  if (_sentences.isNotEmpty) ...[
+                    const SizedBox(width: 16),
+                    Text(
+                      'Sentence ${_currentSentenceIndex + 1} of ${_sentences.length}',
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                  ],
                 ],
               ),
             ),
