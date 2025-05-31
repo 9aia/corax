@@ -33,6 +33,7 @@ class _PdfTtsScreenState extends State<PdfTtsScreen> {
   List<String> _sentences = [];
   int _currentSentenceIndex = 0;
   bool _isPlaying = false;
+  final PdfViewerController _pdfViewerController = PdfViewerController();
 
   @override
   void initState() {
@@ -107,6 +108,28 @@ class _PdfTtsScreenState extends State<PdfTtsScreen> {
     return sentences;
   }
 
+  Future<void> _goToPreviousSentence() async {
+    if (_currentSentenceIndex > 0) {
+      setState(() {
+        _currentSentenceIndex--;
+      });
+      if (_isPlaying) {
+        await _flutterTts.speak(_sentences[_currentSentenceIndex]);
+      }
+    }
+  }
+
+  Future<void> _goToNextSentence() async {
+    if (_currentSentenceIndex < _sentences.length - 1) {
+      setState(() {
+        _currentSentenceIndex++;
+      });
+      if (_isPlaying) {
+        await _flutterTts.speak(_sentences[_currentSentenceIndex]);
+      }
+    }
+  }
+
   Future<void> _togglePlayPause() async {
     if (_sentences.isEmpty) return;
 
@@ -119,19 +142,25 @@ class _PdfTtsScreenState extends State<PdfTtsScreen> {
       if (_currentSentenceIndex >= _sentences.length) {
         _currentSentenceIndex = 0;
       }
+      
       await _flutterTts.speak(_sentences[_currentSentenceIndex]);
       setState(() {
         _isPlaying = true;
       });
       
       // Move to next sentence when current one is done
-      _flutterTts.setCompletionHandler(() {
-        setState(() {
-          _isPlaying = false;
-          if (_currentSentenceIndex < _sentences.length - 1) {
+      _flutterTts.setCompletionHandler(() async {
+        if (_currentSentenceIndex < _sentences.length - 1) {
+          setState(() {
             _currentSentenceIndex++;
-          }
-        });
+          });
+          // Automatically start reading the next sentence
+          await _flutterTts.speak(_sentences[_currentSentenceIndex]);
+        } else {
+          setState(() {
+            _isPlaying = false;
+          });
+        }
       });
     }
   }
@@ -146,7 +175,7 @@ class _PdfTtsScreenState extends State<PdfTtsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('PDF Reader with TTS'),
+        title: const Text('Corax'),
         actions: [
           IconButton(
             icon: const Icon(Icons.file_open),
@@ -158,7 +187,17 @@ class _PdfTtsScreenState extends State<PdfTtsScreen> {
         children: [
           if (_pdfFile != null) ...[
             Expanded(
-              child: SfPdfViewer.file(_pdfFile!),
+              child: SfPdfViewer.file(
+                _pdfFile!,
+                controller: _pdfViewerController,
+                enableTextSelection: true,
+                enableDoubleTapZooming: true,
+                canShowScrollHead: true,
+                canShowScrollStatus: true,
+                enableDocumentLinkAnnotation: true,
+                canShowPaginationDialog: true,
+                canShowTextSelectionMenu: false,
+              ),
             ),
             Padding(
               padding: const EdgeInsets.all(8.0),
@@ -166,8 +205,21 @@ class _PdfTtsScreenState extends State<PdfTtsScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   IconButton(
+                    icon: const Icon(Icons.skip_previous),
+                    onPressed: _goToPreviousSentence,
+                    tooltip: 'Previous sentence',
+                  ),
+                  const SizedBox(width: 16),
+                  IconButton(
                     icon: Icon(_isPlaying ? Icons.pause : Icons.play_arrow),
                     onPressed: _togglePlayPause,
+                    tooltip: _isPlaying ? 'Pause' : 'Resume',
+                  ),
+                  const SizedBox(width: 16),
+                  IconButton(
+                    icon: const Icon(Icons.skip_next),
+                    onPressed: _goToNextSentence,
+                    tooltip: 'Next sentence',
                   ),
                   if (_sentences.isNotEmpty) ...[
                     const SizedBox(width: 16),
